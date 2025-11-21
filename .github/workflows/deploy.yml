@@ -6,7 +6,9 @@ on:
       - main  # Default branch of ai_salesman repo
 
 permissions:
-  contents: write  # Required for peaceiris/actions-gh-pages
+  contents: read
+  pages: write
+  id-token: write
 
 jobs:
   build_and_deploy:
@@ -55,8 +57,14 @@ jobs:
       - name: Build Flutter web
         run: flutter build web --release --base-href "/ai_salesman/" --dart-define=OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
 
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./build/web
+          path: ./build/web
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
