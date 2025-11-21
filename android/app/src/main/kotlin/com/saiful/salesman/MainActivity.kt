@@ -1,4 +1,4 @@
-package com.example.ai_salesman
+package com.saiful.salesman
 
 import io.flutter.embedding.android.FlutterActivity
 
