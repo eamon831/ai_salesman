@@ -9,7 +9,7 @@ flutter build apk --release
 # copy the apk to ~/Desktop
 # delete old apk if exists
 if [ -f ~/Desktop/salesman.apk ]; then
-  rm ~/Desktop/tbhsd.apk
+  rm ~/Desktop/salesman.apk
 fi
 
 cp build/app/outputs/flutter-apk/app-release.apk ~/Desktop/salesman.apk
