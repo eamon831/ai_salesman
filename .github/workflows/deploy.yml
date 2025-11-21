@@ -1,9 +1,12 @@
-name: Deploy Flutter Web to eamon831.github.io
+name: Deploy Flutter Web to GitHub Pages
 
 on:
   push:
     branches:
       - main  # Default branch of ai_salesman repo
+
+permissions:
+  contents: write  # Required for peaceiris/actions-gh-pages
 
 jobs:
   build_and_deploy:
@@ -50,40 +53,10 @@ jobs:
         run: flutter pub run flutter_launcher_icons:main
 
       - name: Build Flutter web
-        run: flutter build web --release --base-href "/" --dart-define=OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+        run: flutter build web --release --base-href "/ai_salesman/" --dart-define=OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
 
-      - name: Deploy to eamon831.github.io
-        env:
-          GH_PAT: ${{ secrets.GH_PAT }}
-          TARGET_REPO_URL: https://github.com/eamon831/eamon831.github.io.git
-          TARGET_BRANCH: main
-          COMMIT_EMAIL: "eamon831@gmail.com"
-          COMMIT_NAME: "GitHub Actions (Automated Deploy)"
-          BUILD_OUTPUT_DIR: build/web
-        run: |
-          echo "Cloning target repository..."
-          git clone $TARGET_REPO_URL deploy_target_repo
-          cd deploy_target_repo
-          
-          git config user.email "$COMMIT_EMAIL"
-          git config user.name "$COMMIT_NAME"
-          
-          echo "Cleaning target directory (preserving .git)..."
-          find . -maxdepth 1 ! -name '.git' ! -name '.' -exec rm -rf {} \;
-
-          echo "Copying build files from ai_salesman..."
-          cp -R ../${BUILD_OUTPUT_DIR}/* .
-
-          echo "Staging, committing, and pushing changes..."
-          git add .
-
-          if git diff-index --quiet HEAD; then
-            echo "No changes to commit."
-          else
-            git commit -m "Deploy Flutter web app from ai_salesman (Automated)"
-            git push "https://x-access-token:${GH_PAT}@github.com/eamon831/eamon831.github.io.git" HEAD:$TARGET_BRANCH
-            echo "Deployment complete."
-          fi
-
-          cd ..
-          rm -rf deploy_target_repo
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./build/web
