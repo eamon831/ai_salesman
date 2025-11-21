@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:ai_salesman/core/utils/color_print.dart';
 import 'package:http/http.dart' as http;
 
-const openAiApiKey = String.fromEnvironment('OPENAI_API_KEY');
+final openAiApiKey = const String.fromEnvironment('OPENAI_API_KEY');
 
 class OpenAiService {
   static const String _apiEndpoint =
