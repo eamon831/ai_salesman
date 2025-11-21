@@ -68,13 +68,6 @@ class ChatMessage {
   final bool isUserMessage;
 
   const ChatMessage({required this.text, required this.isUserMessage});
-
-  factory ChatMessage.fromJson(Map<String, dynamic> json) {
-    return ChatMessage(
-      text: json['text'] as String,
-      isUserMessage: json['isUserMessage'] as bool,
-    );
-  }
 }
 
 // Main Page
@@ -87,15 +80,17 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   late final ProductDetails productDetails;
+  late final OpenAiService _openAiService;
   final List<ChatMessage> _chatMessages = [];
   final TextEditingController _msgController = TextEditingController();
-  final OpenAiService _openAiService = OpenAiService();
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
     productDetails = ProductDetails.fromJson(kProductDetailsJson);
+    // Pass the complete product details JSON to the AI service
+    _openAiService = OpenAiService(productDetails: kProductDetailsJson);
   }
 
   @override
@@ -168,7 +163,13 @@ class _HomePageState extends State<HomePage> {
           },
         );
       },
-    );
+    ).then((_) {
+      // Reset conversation when dialog closes
+      _openAiService.resetConversation();
+      setState(() {
+        _chatMessages.clear();
+      });
+    });
   }
 
   Widget _buildChatHeader() {
@@ -179,7 +180,7 @@ class _HomePageState extends State<HomePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Ask any question',
+                'AI Sales Assistant 🤖',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 4),
@@ -200,10 +201,27 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildMessageList() {
     if (_chatMessages.isEmpty) {
-      return const Center(
-        child: Text(
-          'Start a conversation!',
-          style: TextStyle(color: Colors.grey),
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            const Text(
+              'Hi! 👋 How can I help you today?',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Colors.grey,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Ask me anything about the ${productDetails.name}',
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       );
     }
@@ -222,7 +240,7 @@ class _HomePageState extends State<HomePage> {
       controller: _msgController,
       enabled: !_isLoading,
       decoration: InputDecoration(
-        hintText: 'Type your message',
+        hintText: 'Ask about features, pricing, etc...',
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(24)),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
