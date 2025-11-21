@@ -165,6 +165,16 @@ class _HomePageState extends State<HomePage> {
                           icon: const Icon(Icons.send),
                           onPressed: () async {
                             if (msgController.text.trim().isEmpty) return;
+                            final userMessage = msgController.text.trim();
+                            modalSetState(() {
+                              chatMessages.add(
+                                ChatMessage(
+                                  text: msgController.text.trim(),
+                                  isUserMessage: true,
+                                ),
+                              );
+                            });
+                            msgController.clear();
                             await OpenAiService()
                                 .getCompletion(msgController.text.trim())
                                 .then((value) {
