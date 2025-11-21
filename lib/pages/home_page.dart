@@ -1,7 +1,8 @@
 import 'package:ai_salesman/services/open_ai_service.dart';
 import 'package:flutter/material.dart';
 
-final productDetailsJson = {
+// Constants
+const kProductDetailsJson = {
   "name": "Apple iPhone 16",
   "description":
       "The iPhone 16 features a 6.1″ Super Retina XDR OLED display, IP68 water/dust resistance, the A18 chip, Apple Intelligence, a dual-camera system (48 MP + 12 MP), and USB-C charging.",
@@ -38,13 +39,14 @@ final productDetailsJson = {
   },
 };
 
+// Models
 class ProductDetails {
   final String name;
   final String description;
   final double price;
   final String image;
 
-  ProductDetails({
+  const ProductDetails({
     required this.name,
     required this.description,
     required this.price,
@@ -53,10 +55,10 @@ class ProductDetails {
 
   factory ProductDetails.fromJson(Map<String, dynamic> json) {
     return ProductDetails(
-      name: json['name'],
-      description: json['description'],
+      name: json['name'] as String,
+      description: json['description'] as String,
       price: (json['price'] as num).toDouble(),
-      image: json['image'],
+      image: json['image'] as String,
     );
   }
 }
@@ -65,16 +67,17 @@ class ChatMessage {
   final String text;
   final bool isUserMessage;
 
-  ChatMessage({required this.text, required this.isUserMessage});
+  const ChatMessage({required this.text, required this.isUserMessage});
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
     return ChatMessage(
-      text: json['text'],
-      isUserMessage: json['isUserMessage'],
+      text: json['text'] as String,
+      isUserMessage: json['isUserMessage'] as bool,
     );
   }
 }
 
+// Main Page
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -83,118 +86,81 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  ProductDetails productDetails = ProductDetails.fromJson(productDetailsJson);
-  List<ChatMessage> chatMessages = <ChatMessage>[];
+  late final ProductDetails productDetails;
+  final List<ChatMessage> _chatMessages = [];
+  final TextEditingController _msgController = TextEditingController();
+  final OpenAiService _openAiService = OpenAiService();
+  bool _isLoading = false;
 
-  TextEditingController msgController = TextEditingController();
+  @override
+  void initState() {
+    super.initState();
+    productDetails = ProductDetails.fromJson(kProductDetailsJson);
+  }
 
-  void openChatModal() {
+  @override
+  void dispose() {
+    _msgController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _sendMessage(StateSetter modalSetState) async {
+    final userMessage = _msgController.text.trim();
+    if (userMessage.isEmpty) return;
+
+    // Add user message
+    modalSetState(() {
+      _chatMessages.add(ChatMessage(text: userMessage, isUserMessage: true));
+      _isLoading = true;
+    });
+    _msgController.clear();
+
+    try {
+      // Get AI response
+      final response = await _openAiService.getCompletion(userMessage);
+
+      if (response != null && response.isNotEmpty) {
+        modalSetState(() {
+          _chatMessages.add(ChatMessage(text: response, isUserMessage: false));
+        });
+      }
+    } catch (e) {
+      modalSetState(() {
+        _chatMessages.add(
+          const ChatMessage(
+            text: 'Sorry, I encountered an error. Please try again.',
+            isUserMessage: false,
+          ),
+        );
+      });
+    } finally {
+      modalSetState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _openChatModal() {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (context, modalSetState) {
             return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               child: Container(
-                height: 380,
-                padding: const EdgeInsets.all(12),
+                constraints: const BoxConstraints(maxHeight: 600),
+                padding: const EdgeInsets.all(16),
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Ask any question related to this product',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text(
-                              'Product: ${productDetails.name}',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: IconButton(
-                            icon: const Icon(Icons.close),
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    Expanded(
-                      child: ListView.builder(
-                        itemCount: chatMessages.length,
-                        itemBuilder: (BuildContext context, int index) {
-                          final message = chatMessages[index];
-                          return Align(
-                            alignment: message.isUserMessage
-                                ? Alignment.centerRight
-                                : Alignment.centerLeft,
-                            child: Container(
-                              padding: const EdgeInsets.all(10),
-                              margin: const EdgeInsets.symmetric(vertical: 4),
-                              decoration: BoxDecoration(
-                                color: message.isUserMessage
-                                    ? Colors.blue.shade100
-                                    : Colors.grey.shade300,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(message.text),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    TextFormField(
-                      controller: msgController,
-                      decoration: InputDecoration(
-                        hintText: 'Type your message',
-                        suffixIcon: IconButton(
-                          icon: const Icon(Icons.send),
-                          onPressed: () async {
-                            if (msgController.text.trim().isEmpty) return;
-                            final userMessage = msgController.text.trim();
-                            modalSetState(() {
-                              chatMessages.add(
-                                ChatMessage(
-                                  text: msgController.text.trim(),
-                                  isUserMessage: true,
-                                ),
-                              );
-                            });
-                            msgController.clear();
-                            await OpenAiService()
-                                .getCompletion(msgController.text.trim())
-                                .then((value) {
-                                  if (value != null) {
-                                    modalSetState(() {
-                                      chatMessages.add(
-                                        ChatMessage(
-                                          text: value ?? '',
-                                          isUserMessage: false,
-                                        ),
-                                      );
-                                    });
-                                  }
-                                });
-
-                            msgController.clear();
-                          },
-                        ),
-                      ),
-                    ),
+                    _buildChatHeader(),
+                    const SizedBox(height: 12),
+                    Expanded(child: _buildMessageList()),
+                    const SizedBox(height: 12),
+                    _buildMessageInput(modalSetState),
                   ],
                 ),
               ),
@@ -205,35 +171,188 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Widget _buildChatHeader() {
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Ask any question',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Product: ${productDetails.name}',
+                style: const TextStyle(fontSize: 14, color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+        IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMessageList() {
+    if (_chatMessages.isEmpty) {
+      return const Center(
+        child: Text(
+          'Start a conversation!',
+          style: TextStyle(color: Colors.grey),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: _chatMessages.length,
+      itemBuilder: (context, index) {
+        final message = _chatMessages[index];
+        return _ChatBubble(message: message);
+      },
+    );
+  }
+
+  Widget _buildMessageInput(StateSetter modalSetState) {
+    return TextField(
+      controller: _msgController,
+      enabled: !_isLoading,
+      decoration: InputDecoration(
+        hintText: 'Type your message',
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(24)),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
+        suffixIcon: _isLoading
+            ? const Padding(
+                padding: EdgeInsets.all(12),
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              )
+            : IconButton(
+                icon: const Icon(Icons.send),
+                onPressed: () => _sendMessage(modalSetState),
+              ),
+      ),
+      onSubmitted: (_) => _sendMessage(modalSetState),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Salesman')),
+      appBar: AppBar(title: const Text('AI Salesman'), centerTitle: true),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(16),
         child: Column(
-          children: <Widget>[
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
             Text(
               productDetails.name,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 6),
-            Text(productDetails.description),
             const SizedBox(height: 12),
-            SizedBox(
-              height: 220,
-              width: 220,
-              child: Image.network(productDetails.image, fit: BoxFit.cover),
+            Text(
+              productDetails.description,
+              style: Theme.of(context).textTheme.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.network(
+                productDetails.image,
+                height: 300,
+                width: 300,
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return SizedBox(
+                    height: 300,
+                    width: 300,
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        value: loadingProgress.expectedTotalBytes != null
+                            ? loadingProgress.cumulativeBytesLoaded /
+                                  loadingProgress.expectedTotalBytes!
+                            : null,
+                      ),
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    height: 300,
+                    width: 300,
+                    color: Colors.grey[300],
+                    child: const Icon(Icons.error, size: 50),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              '\$${productDetails.price.toStringAsFixed(2)}',
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                color: Colors.green,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ],
         ),
       ),
-
-      // Floating Button
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: openChatModal,
-        label: const Text("How can I help you?"),
+        onPressed: _openChatModal,
+        label: const Text('How can I help you?'),
         icon: const Icon(Icons.chat),
+      ),
+    );
+  }
+}
+
+// Chat Bubble Widget
+class _ChatBubble extends StatelessWidget {
+  final ChatMessage message;
+
+  const _ChatBubble({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: message.isUserMessage
+          ? Alignment.centerRight
+          : Alignment.centerLeft,
+      child: Container(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.7,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+        decoration: BoxDecoration(
+          color: message.isUserMessage
+              ? Colors.blue.shade100
+              : Colors.grey.shade300,
+          borderRadius: BorderRadius.circular(16).copyWith(
+            bottomRight: message.isUserMessage
+                ? const Radius.circular(4)
+                : const Radius.circular(16),
+            bottomLeft: message.isUserMessage
+                ? const Radius.circular(16)
+                : const Radius.circular(4),
+          ),
+        ),
+        child: Text(message.text, style: const TextStyle(fontSize: 15)),
       ),
     );
   }
