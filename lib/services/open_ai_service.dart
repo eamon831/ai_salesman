@@ -131,6 +131,7 @@ Remember: You're here to help the customer find the right solution, not just mak
 
   Future<String?> getCompletion(String message) async {
     try {
+      colorPrint('API Key: $openAiApiKey');
       // Add user message to history
       _conversationHistory.add({'role': 'user', 'content': message});
 
