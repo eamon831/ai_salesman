@@ -10,6 +10,9 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.8
+  dio: ^5.9.0
+  pretty_dio_logger: ^1.4.0
+  http: ^1.6.0
 
 
 dev_dependencies:

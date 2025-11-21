@@ -1,3 +1,4 @@
+import 'package:ai_salesman/services/open_ai_service.dart';
 import 'package:flutter/material.dart';
 
 final productDetailsJson = {
@@ -107,11 +108,17 @@ class _HomePageState extends State<HomePage> {
                           children: [
                             const Text(
                               'Ask any question related to this product',
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                             Text(
                               'Product: ${productDetails.name}',
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ],
                         ),
@@ -156,17 +163,22 @@ class _HomePageState extends State<HomePage> {
                         hintText: 'Type your message',
                         suffixIcon: IconButton(
                           icon: const Icon(Icons.send),
-                          onPressed: () {
+                          onPressed: () async {
                             if (msgController.text.trim().isEmpty) return;
-
-                            modalSetState(() {
-                              chatMessages.add(
-                                ChatMessage(
-                                  text: msgController.text.trim(),
-                                  isUserMessage: true,
-                                ),
-                              );
-                            });
+                            await OpenAiService()
+                                .getCompletion(msgController.text.trim())
+                                .then((value) {
+                                  if (value != null) {
+                                    modalSetState(() {
+                                      chatMessages.add(
+                                        ChatMessage(
+                                          text: value ?? '',
+                                          isUserMessage: false,
+                                        ),
+                                      );
+                                    });
+                                  }
+                                });
 
                             msgController.clear();
                           },
